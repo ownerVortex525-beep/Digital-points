@@ -27,8 +27,9 @@ CF.App = (function () {
     CF.Storage.applyTheme(savedTheme);
 
     const canvasContainer = document.getElementById('network-canvas');
-    if (canvasContainer && typeof vis !== 'undefined') {
-      initNetwork(canvasContainer);
+    if (canvasContainer && (typeof vis !== 'undefined' || (window && window.vis))) {
+      const visLib = typeof vis !== 'undefined' ? vis : (window && window.vis);
+      initNetwork(canvasContainer, visLib);
       restoreGraph();
       
       const saved = localStorage.getItem('CFGraph');
@@ -36,9 +37,7 @@ CF.App = (function () {
         loadSeedGraph();
       }
     } else {
-      if (typeof vis === 'undefined') {
-        CF.UI.toast('vis-network failed to load', { type: 'error' });
-      }
+      CF.UI.toast('vis-network failed to load', { type: 'error' });
     }
 
     renderEntityPalette();
@@ -52,9 +51,14 @@ CF.App = (function () {
     }, 500);
   }
 
-  function initNetwork(container) {
-    nodes = new vis.DataSet([]);
-    edges = new vis.DataSet([]);
+  function initNetwork(container, visLib) {
+    if (!visLib) {
+      console.error('vis-network library not available');
+      return;
+    }
+
+    nodes = new visLib.DataSet([]);
+    edges = new visLib.DataSet([]);
 
     const data = { nodes: nodes, edges: edges };
 
@@ -70,12 +74,12 @@ CF.App = (function () {
       },
       nodes: {
         shape: 'image',
-        font: { color: 'var(--text-primary)', size: 16, strokeWidth: 0, vadjust: 10 },
+        font: { color: '#e9ecef', size: 16, strokeWidth: 0, vadjust: 10 },
         borderWidth: 0,
         widthConstraint: { maximum: 200 }
       },
       edges: {
-        color: { color: '#6b7280', highlight: 'var(--accent-color)', hover: 'var(--accent-hover-color)' },
+        color: { color: '#6b7280', highlight: '#38bdf8', hover: '#7dd3fc' },
         width: 2,
         arrows: { to: { enabled: true, scaleFactor: 0.7 } },
         smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }
@@ -85,7 +89,7 @@ CF.App = (function () {
       autoResize: true
     };
 
-    network = new vis.Network(container, data, options);
+    network = new visLib.Network(container, data, options);
 
     network.on('click', handleNetworkClick);
     network.on('doubleClick', handleNetworkDoubleClick);

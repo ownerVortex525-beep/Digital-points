@@ -10,6 +10,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 
   <script src="js/vis-network.min.js"></script>
+  <script>
+    (function() {
+      var v = (typeof globalThis !== 'undefined' && globalThis.vis) ||
+              (typeof window !== 'undefined' && window.vis) ||
+              (typeof self !== 'undefined' && self.vis);
+      if (v) { window.vis = v; }
+    })();
+  </script>
 
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/themes.css">
