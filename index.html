@@ -7,7 +7,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/themes.css">
@@ -15,172 +17,65 @@
 </head>
 <body data-theme="day" data-app="cyber-force">
 
-  <div class="app-wrapper">
+  <div id="app-container" class="relative w-full h-screen">
 
-    <header class="status-bar" role="banner">
-      <div class="status-bar__left">
-        <span class="status-bar__version" id="app-version">CYBER-FORCE v2.1.0</span>
-        <span class="status-bar__separator">•</span>
-        <span class="status-bar__-badge status-bar__badge--deepdive">DEEP-DIVE Module</span>
-      </div>
-      <div class="status-bar__center">
-        <span class="status-bar__text" id="status-text">System initializing...</span>
-      </div>
-      <div class="status-bar__right">
-        <button type="button" id="theme-toggle" class="status-bar__btn" aria-label="Toggle day/night theme">
-          <svg class="status-bar__theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M12 3V4M12 20V21M4.22 4.22L4.95 4.95M19.05 19.05L19.78 19.78M3 12H4M20 12H21M4.22 19.78L4.95 19.05M19.05 4.95L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <button type="button" id="sidebar-toggle" class="status-bar__btn" aria-label="Toggle sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-        </button>
-      </div>
-    </header>
+    <div id="network-canvas" class="w-full h-full"></div>
 
-    <div class="app-content" data-app="main">
+    <div id="ui-container" class="fixed inset-0 z-20 flex flex-col items-center p-2 sm:p-4 pointer-events-none">
 
-      <aside class="sidebar" role="navigation" aria-label="Main navigation">
-
-        <div class="sidebar__brand">
-          <svg class="sidebar__logo" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L2 7V12C2 17.5 6.5 21.5 12 22C17.5 21.5 22 17.5 22 12V7L12 2Z" stroke="var(--primary)" stroke-width="2"/>
-            <circle cx="12" cy="12" r="4" fill="var(--primary)"/>
-          </svg>
-          <span class="sidebar__brand-name">CYBER-FORCE</span>
+      <header class="pointer-events-auto w-full max-w-3xl">
+        <div class="flex items-center gap-2 glass-panel p-2 rounded-xl flex-wrap justify-center">
+          <div class="flex items-center gap-2 px-3">
+            <svg class="w-6 h-6 text-brand-accent" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7V12C2 17.5 6.5 21.5 12 22C17.5 21.5 22 17.5 22 12V7L12 2Z" stroke="currentColor" stroke-width="2"/>
+              <circle cx="12" cy="12" r="4" fill="currentColor"/>
+            </svg>
+            <h1 class="orbitron text-lg font-bold text-white">CYBER-FORCE</h1>
+            <span class="text-xs text-gray-400">OSINT Deep-Dive</span>
+          </div>
+          <div class="w-px h-8 bg-brand-border hidden sm:block"></div>
+          <div id="global-actions" class="flex items-center gap-1 flex-wrap justify-center"></div>
         </div>
+      </header>
 
-        <nav class="sidebar__nav" role="menubar">
+      <footer class="mt-auto pointer-events-auto w-full max-w-md">
+        <div id="entity-palette" class="flex items-center gap-2 glass-panel p-2 rounded-xl flex-wrap justify-center"></div>
+      </footer>
 
-          <div class="sidebar__nav-group">
-            <div class="sidebar__nav-section" role="none">
-              <a href="#" class="sidebar__nav-item sidebar__nav-item--active" data-nav="investigations" role="menuitem">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>
-                <span>Investigations Graph</span>
-              </a>
-              <a href="#" class="sidebar__nav-item sidebar__nav-item--active" data-nav="deepdive" role="menuitem">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="6" r="4"/><path d="M2 20C2 17.79 4.24 16 8 16H16C19.76 16 22 17.79 22 20V22H2V20Z"/></svg>
-                <span>Deep-Dive Investigations</span>
-              </a>
-            </div>
-          </div>
-
-          <div class="sidebar__nav-group">
-            <div class="sidebar__nav-label">Deep-Dive Sections</div>
-            <a href="#" class="sidebar__nav-item" data-nav="telegram" data-section="deepdive">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 2.5L1.5 7.5L15 12.5L14.5 2.5Z" fill="currentColor"/></svg>
-              <span>Telegram</span>
-            </a>
-            <a href="#" class="sidebar__nav-item" data-nav="darkweb" data-section="deepdive">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2"/></svg>
-              <span>Dark Web</span>
-            </a>
-            <a href="#" class="sidebar__nav-item" data-nav="deepweb" data-section="deepdive">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="12" rx="8" ry="4" stroke="currentColor" stroke-width="2"/><path d="M4 12L12 4L20 12L12 20L4 12Z" fill="currentColor"/></svg>
-              <span>Deep Web</span>
-            </a>
-          </div>
-
-          <div class="sidebar__nav-group">
-            <div class="sidebar__nav-label">Tools</div>
-            <a href="#" class="sidebar__nav-item" data-nav="tracechain">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 12L12 5L19 12L12 19L5 12Z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>
-              <span>Trace Chain</span>
-            </a>
-            <a href="#" class="sidebar__nav-item" data-nav="settings">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 1V3M12 21L12 23M4.27 4.27L5.66 5.66M18.34 18.34L19.73 19.73M1 12L3 12M21 12L23 12M4.27 19.73L5.66 18.34M18.34 5.66L19.73 4.27"/></svg>
-              <span>Settings</span>
-            </a>
-          </div>
-
-          <div class="sidebar__nav-group">
-            <a href="#" class="sidebar__nav-item" id="reset-data" title="Reset all simulated data to defaults">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 12C4 9.79 5.79 8 8 8C10.21 8 12 9.79 12 12C12 14.21 10.21 16 8 16C5.79 16 4 14.21 4 12Z"/><path d="M12 4V8M12 16V20M4 12H8M16 12L20 12"/></svg>
-              <span>Reset Demo Data</span>
-            </a>
-            <a href="#" class="sidebar__nav-item" onclick="showShortcutsHelp()">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/><line x1="12" y1="16" x2="12" y2="12"/><circle cx="12" cy="9" r="1.5"/></svg>
-              <span>Shortcuts (?)</span>
-            </a>
-          </div>
-        </nav>
-
-        <div class="sidebar__footer">
-          <div class="sidebar__footer-text">
-            <span class="sim-badge">SIMULATED ENVIRONMENT</span>
-          </div>
-        </div>
-      </aside>
-
-    <main class="main-panel">
-
-     <section class="panel panel--active" data-panel="investigations">
-          <div class="panel__header">
-            <h1>Investigations Graph</h1>
-            <p class="panel__subtitle">Main entity relationship visualization</p>
-          </div>
-          <div class="panel__content">
-            <div class="placeholder-graph">
-              <svg class="placeholder-graph__bg" width="100%" height="100%" viewBox="0 0 800 500">
-                <rect x="0" y="0" width="800" height="500" fill="none"/>
-                <circle cx="400" cy="250" r="100" fill="var(--surface-3)" fill-opacity="0.3" stroke="var(--border)" stroke-dasharray="4,4"/>
-                <text x="400" y="250" text-anchor="middle" dominant-baseline="middle" fill="var(--text-secondary)" font-size="14">Investigations Graph (coming soon)</text>
-                <circle cx="250" cy="200" r="12"/>
-                <circle cx="550" cy="250" r="15"/>
-                <circle cx="250" cy="350" r="10"/>
-              </svg>
-            </div>
-          </div>
-        </section>
-
-         <section class="panel" data-panel="deepdive">
-
-          <!-- Sub-tab navigation -->
-          <div class="deepdive__tabs" role="tablist" aria-label="Deep-Dive sub-tabs">
-
-            <button type="button" class="deepdive__tab active" data-deepdive-tab="telegram" role="tab" aria-selected="true">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 2.5L1.5 7.5L15 12.5L14.5 2.5Z" fill="currentColor"/></svg>
-              Telegram Investigations
-            </button>
-
-            <button type="button" class="deepdive__tab" data-deepdive-tab="darkweb" role="tab" aria-selected="false">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2"/></svg>
-              Dark Web Investigations
-            </button>
-
-            <button type="button" class="deepdive__tab" data-deepdive-tab="deepweb" role="tab" aria-selected="false">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="12" rx="8" ry="4" stroke="currentColor" stroke-width="2"/><path d="M4 12L12 4L20 12L12 20L4 12Z" fill="currentColor"/></svg>
-              Deep Web Investigations
-            </button>
-
-            <!-- Sliding indicator -->
-            <div class="deepdive__tab-indicator"></div>
-          </div>
-
-          <!-- Tab panels -->
-          <div class="deepdive__panels">
-            <section class="deepdive__panel active" data-deepdive-panel="telegram" role="tabpanel" aria-labelledby="tab-telegram"></section>
-            <section class="deepdive__panel" data-deepdive-panel="darkweb" role="tabpanel" aria-labelledby="tab-darkweb"></section>
-            <section class="deepdive__panel" data-deepdive-panel="deepweb" role="tabpanel" aria-labelledby="tab-deepweb"></section>
-          </div>
-        </section>
-
-      </main>
     </div>
 
-      <footer class="footer">
-      <div class="footer__left">
-        <span>CYBER-FORCE OSINT Deep-Dive Module</span>
+    <aside id="edit-panel" class="fixed top-4 right-4 h-auto z-20 flex flex-col gap-3 p-4 glass-panel w-72 rounded-xl transition-transform translate-x-[120%]"></aside>
+
+    <div id="toast-container" class="fixed bottom-24 right-4 z-50 flex flex-col gap-2"></div>
+    <div id="context-menu" class="fixed z-50 glass-panel p-2 rounded-lg hidden flex-col w-48 text-sm"></div>
+
+    <div id="modal-container" class="hidden fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50">
+      <div class="glass-panel rounded-lg p-6 w-full max-w-lg flex flex-col gap-4 mx-4 fade-in">
+        <h3 id="modal-title" class="text-lg font-bold"></h3>
+        <div id="modal-body" class="text-sm text-gray-300 max-h-[60vh] overflow-y-auto pr-2"></div>
+        <input type="text" id="modal-input" class="w-full bg-brand-surface border border-brand-border rounded-md px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-brand-accent">
+        <div id="modal-buttons" class="flex justify-end gap-3">
+          <button id="modal-cancel" class="px-4 py-2 bg-brand-surface hover:bg-brand-border rounded-md transition-colors duration-200">Cancel</button>
+          <button id="modal-ok" class="px-4 py-2 bg-brand-accent text-brand-bg font-semibold hover:bg-brand-accent-hover rounded-md transition-colors duration-200">OK</button>
+        </div>
       </div>
-      <div class="footer__right">
-        <span class="sim-badge">SIMULATED DATA</span>
-        <span>v2.1.0</span>
-      </div>
-    </footer>
+    </div>
+
+    <div id="size-slider-container" class="hidden fixed z-30 glass-panel p-2 rounded-lg items-center gap-2 transition-opacity duration-200 opacity-0">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
+        <circle cx="12" cy="12" r="10"></circle>
+        <circle cx="12" cy="12" r="6"></circle>
+        <circle cx="12" cy="12" r="2"></circle>
+      </svg>
+      <input type="range" id="node-size-slider" class="w-24">
+    </div>
+
+    <input type="file" id="add-photo-input" accept="image/*" class="hidden">
+    <input type="file" id="load-input" accept=".json" class="hidden">
   </div>
 
+  <div id="drop-overlay" class="hidden fixed inset-0 z-50 bg-sky-500/20 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-sky-300">
+    <div class="text-white text-2xl font-bold drop-shadow-lg">Drop file here</div>
   </div>
 
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
@@ -194,7 +89,6 @@
   <script src="js/icons.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/osint-deepdive.js"></script>
-  <script src="js/deepdive-init.js"></script>
   <script src="js/telegram-view.js"></script>
   <script src="js/darkweb-view.js"></script>
   <script src="js/deepweb-view.js"></script>
@@ -202,17 +96,13 @@
   <script src="js/app.js"></script>
 
   <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      CF.App.init();
+    });
+
     function showShortcutsHelp() {
       CF.UI.showShortcuts();
     }
-    document.addEventListener('readystatechange', function() {
-      if (document.readyState === 'complete') {
-        if (!window.__appInit) {
-          window.__appInit = true;
-          CF.App.init();
-        }
-      }
-    });
   </script>
 </body>
 </html>

@@ -16,3 +16,6 @@ dist/
 # Logs
 *.log
 npm-debug.log*
+
+# Temporary/unnecessary files
+reference/
