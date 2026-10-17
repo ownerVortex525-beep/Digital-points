@@ -27,8 +27,11 @@ CF.App = (function () {
     CF.Storage.applyTheme(savedTheme);
 
     const canvasContainer = document.getElementById('network-canvas');
-    if (canvasContainer && (typeof vis !== 'undefined' || (window && window.vis))) {
-      const visLib = typeof vis !== 'undefined' ? vis : (window && window.vis);
+    var visLib = null;
+    try { visLib = typeof vis !== 'undefined' ? vis : null; } catch (e) { visLib = null; }
+    if (typeof window !== 'undefined' && window.vis && !visLib) { visLib = window.vis; }
+    
+    if (canvasContainer && visLib) {
       initNetwork(canvasContainer, visLib);
       restoreGraph();
       
@@ -38,6 +41,7 @@ CF.App = (function () {
       }
     } else {
       CF.UI.toast('vis-network failed to load', { type: 'error' });
+      console.error('vis not found');
     }
 
     renderEntityPalette();
