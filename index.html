@@ -19,7 +19,19 @@
 
   <div id="app-container">
 
-    <div id="network-canvas"></div>
+    <div id="network-canvas">
+      <div id="canvas-fallback" class="hidden fixed inset-0 flex items-center justify-center z-10">
+        <div class="glass-panel p-6 rounded-xl text-center max-w-md">
+          <svg class="w-12 h-12 text-accent-color mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="16" x2="12" y2="12"/>
+            <line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          <h3 class="text-lg font-bold mb-2">Canvas Loading...</h3>
+          <p class="text-sm text-gray-400">If this persists, check browser console for errors.</p>
+        </div>
+      </div>
+    </div></div>
 
     <div id="ui-container">
 
