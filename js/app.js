@@ -13,6 +13,8 @@ CF.App = (function () {
   let connectionSourceNodeId = null;
   let currentView = 'telegram';
   let dragCounter = 0;
+  let canvasInitAttempted = false;
+  let canvasErrorShown = false;
 
   const ICON_SIZE = 64;
 
@@ -20,28 +22,24 @@ CF.App = (function () {
     if (initialized) return;
     initialized = true;
 
-    CF.Storage.seedAll();
-    CF.UI.init();
+    try {
+      CF.Storage.seedAll();
+    } catch (e) {
+      console.error('Storage init failed:', e);
+    }
 
-    const savedTheme = CF.Storage.getTheme();
-    CF.Storage.applyTheme(savedTheme);
+    try {
+      CF.UI.init();
+    } catch (e) {
+      console.error('UI init failed:', e);
+    }
 
-    const canvasContainer = document.getElementById('network-canvas');
-    var visLib = null;
-    try { visLib = typeof vis !== 'undefined' ? vis : null; } catch (e) { visLib = null; }
-    if (typeof window !== 'undefined' && window.vis && !visLib) { visLib = window.vis; }
-    
-    if (canvasContainer && visLib) {
-      initNetwork(canvasContainer, visLib);
-      restoreGraph();
-      
-      const saved = localStorage.getItem('CFGraph');
-      if (!saved && nodes.getLength() === 0) {
-        loadSeedGraph();
-      }
-    } else {
-      CF.UI.toast('vis-network failed to load', { type: 'error' });
-      console.error('vis not found');
+    try {
+      const savedTheme = CF.Storage.getTheme();
+      CF.Storage.applyTheme(savedTheme);
+    } catch (e) {
+      console.error('Theme init failed:', e);
+      document.documentElement.setAttribute('data-theme', 'night');
     }
 
     renderEntityPalette();
@@ -50,15 +48,90 @@ CF.App = (function () {
     bindEvents();
     bindThemeSwitch();
 
-    setTimeout(() => {
-      CF.UI.toast('CYBER-FORCE OSINT Deep-Dive initialized', { type: 'success' });
-    }, 500);
+    setTimeout(function() {
+      try {
+        initCanvasSafely();
+      } catch (e) {
+        console.error('Canvas init failed:', e);
+        if (!canvasErrorShown) {
+          canvasErrorShown = true;
+          showCanvasError(e);
+        }
+      }
+    }, 100);
+
+    window.addEventListener('resize', function() {
+      if (network) {
+        try {
+          network.redraw();
+        } catch (e) {
+          console.warn('Canvas resize redraw failed:', e);
+        }
+      }
+    });
+  }
+
+  function showCanvasError(error) {
+    const fallback = document.getElementById('canvas-fallback');
+    const networkCanvas = document.getElementById('network-canvas');
+    if (fallback) {
+      fallback.classList.remove('hidden');
+      const msg = fallback.querySelector('p');
+      if (msg) {
+        msg.textContent = 'Error: ' + (error.message || 'Canvas initialization failed');
+      }
+    }
+    console.error('=== CYBER-FORCE Canvas Error ===');
+    console.error('Error:', error);
+    console.error('vis available:', typeof vis);
+    console.error('window.vis:', typeof (window && window.vis));
+    console.error('vis-network.min.js loaded:', !!document.querySelector('script[src*="vis-network"]'));
+  }
+
+  function hideCanvasError() {
+    const fallback = document.getElementById('canvas-fallback');
+    if (fallback) {
+      fallback.classList.add('hidden');
+    }
+    canvasErrorShown = false;
+  }
+
+  function initCanvasSafely() {
+    if (canvasInitAttempted) return;
+    canvasInitAttempted = true;
+
+    const canvasContainer = document.getElementById('network-canvas');
+    if (!canvasContainer) {
+      throw new Error('network-canvas element not found');
+    }
+
+    var visLib = null;
+    try { visLib = typeof vis !== 'undefined' ? vis : null; } catch (e) { visLib = null; }
+    if (typeof window !== 'undefined' && window.vis && !visLib) { visLib = window.vis; }
+    
+    if (!visLib) {
+      throw new Error('vis-network library not available (typeof vis = ' + typeof vis + ')');
+    }
+
+    if (!visLib.Network || !visLib.DataSet) {
+      throw new Error('vis-network loaded but Network/DataSet classes missing');
+    }
+
+    initNetwork(canvasContainer, visLib);
+    restoreGraph();
+    
+    const saved = localStorage.getItem('CFGraph');
+    if (!saved && nodes.getLength() === 0) {
+      loadSeedGraph();
+    }
+
+    hideCanvasError();
   }
 
   function initNetwork(container, visLib) {
     if (!visLib) {
       console.error('vis-network library not available');
-      return;
+      throw new Error('vis-network library not available');
     }
 
     nodes = new visLib.DataSet([]);
@@ -90,17 +163,41 @@ CF.App = (function () {
       },
       physics: { enabled: false },
       manipulation: { enabled: false },
-      autoResize: true
+      autoResize: true,
+      height: '100%'
     };
 
-    network = new visLib.Network(container, data, options);
+    try {
+      network = new visLib.Network(container, data, options);
 
-    network.on('click', handleNetworkClick);
-    network.on('doubleClick', handleNetworkDoubleClick);
-    network.on('dragStart', hideSizeSlider);
-    network.on('dragEnd', handleDragEnd);
-    network.on('zoom', hideSizeSlider);
-    network.on('viewChanged', saveState);
+      network.on('init', function() {
+        console.log('Network initialized successfully');
+      });
+
+      network.on('animationend', function() {
+        // Canvas is ready
+      });
+
+      network.on('click', handleNetworkClick);
+      network.on('doubleClick', handleNetworkDoubleClick);
+      network.on('dragStart', hideSizeSlider);
+      network.on('dragEnd', handleDragEnd);
+      network.on('zoom', hideSizeSlider);
+      network.on('viewChanged', saveState);
+
+      setTimeout(function() {
+        if (network) {
+          var width = container.clientWidth || window.innerWidth;
+          var height = container.clientHeight || window.innerHeight;
+          network.moveTo({ scale: 1, animation: false });
+        }
+      }, 500);
+
+      CF.UI.toast('CYBER-FORCE OSINT Deep-Dive initialized', { type: 'success' });
+    } catch (e) {
+      console.error('Network creation failed:', e);
+      throw e;
+    }
   }
 
   function renderEntityPalette() {
