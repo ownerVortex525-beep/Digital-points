@@ -834,6 +834,11 @@ CF.App = (function () {
       if (dragCounter <= 0 && dropOverlay) dropOverlay.classList.remove('show');
     });
 
+    window.addEventListener('dragend', function(e) {
+      dragCounter = 0;
+      if (dropOverlay) dropOverlay.classList.remove('show');
+    });
+
     document.addEventListener('contextmenu', function(e) {
       if (!contextMenu || !network) return;
 
