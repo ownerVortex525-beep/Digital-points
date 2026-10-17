@@ -29,6 +29,16 @@ CF.App = (function () {
     const canvasContainer = document.getElementById('network-canvas');
     if (canvasContainer && typeof vis !== 'undefined') {
       initNetwork(canvasContainer);
+      restoreGraph();
+      
+      const saved = localStorage.getItem('CFGraph');
+      if (!saved && nodes.getLength() === 0) {
+        loadSeedGraph();
+      }
+    } else {
+      if (typeof vis === 'undefined') {
+        CF.UI.toast('vis-network failed to load', { type: 'error' });
+      }
     }
 
     renderEntityPalette();
@@ -423,7 +433,18 @@ CF.App = (function () {
 
     try {
       const data = JSON.parse(saved);
-      if (data.nodes) nodes.add(data.nodes);
+      if (data.nodes) {
+        const restoredNodes = data.nodes.map(function(node) {
+          if (node.entityType && !node.image) {
+            node.image = createEntityIcon(node.entityType);
+          }
+          if (typeof node.x === 'string') node.x = parseFloat(node.x);
+          if (typeof node.y === 'string') node.y = parseFloat(node.y);
+          if (typeof node.size === 'string') node.size = parseFloat(node.size);
+          return node;
+        });
+        nodes.add(restoredNodes);
+      }
       if (data.edges) edges.add(data.edges);
       if (data.theme) {
         CF.Storage.applyTheme(data.theme);
@@ -431,6 +452,34 @@ CF.App = (function () {
     } catch (e) {
       console.error('Failed to restore graph', e);
     }
+  }
+
+  function loadSeedGraph() {
+    if (!nodes || !edges) return;
+    
+    const seedData = CF.Data.SEED_GRAPH;
+    const seedNodes = seedData.nodes.map(function(node) {
+      return {
+        id: node.id,
+        label: node.label,
+        entityType: node.entityType,
+        x: node.x || 0,
+        y: node.y || 0,
+        image: createEntityIcon(node.entityType),
+        size: ICON_SIZE / 2
+      };
+    });
+    
+    const seedEdges = seedData.edges.map(function(edge) {
+      return {
+        from: edge.from,
+        to: edge.to,
+        label: edge.label
+      };
+    });
+    
+    nodes.add(seedNodes);
+    edges.add(seedEdges);
   }
 
   function exportJSON() {
