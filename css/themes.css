@@ -1,0 +1,119 @@
+/* =============================================================================
+   CYBER-FORCE — Theme Tokens & Day/Night Switch
+============================================================================= */
+
+/* Theme-aware surface colors are defined in styles.css via :root.
+   This file adds additional theme utilities and component-specific tokens. */
+
+/* Glassmorphism helpers */
+.glass {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Neumorphic shadows */
+.neumorph {
+  background: var(--surface-0);
+  border-radius: 12px;
+  box-shadow:
+    8px 8px 16px #d9d9d9,
+    -8px -8px 16px #ffffff;
+}
+
+.neumorph-dark {
+  background: var(--surface-1);
+  border-radius: 12px;
+  box-shadow:
+    inset 4px 4px 6px rgba(0, 0, 0, 0.3),
+    4px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Theme-specific shadow overlays */
+:root[data-theme="day"] {
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+:root[data-theme="night"] {
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Module-specific accent glow */
+[data-module="telegram"] .accent-glow { box-shadow: var(--tg-accent-glow); }
+[data-module="darkweb"] .accent-glow { box-shadow: var(--dw-accent-glow); }
+[data-module="deepweb"] .accent-glow { box-shadow: var(--deep-accent-glow); }
+
+/* Theme toggle icon states */
+#theme-toggle[data-theme="day"] svg,
+#theme-toggle[aria-label="Switch to night"] svg { display: none; }
+
+#theme-toggle[data-theme="night"] svg,
+#theme-toggle[aria-label="Switch to day"] svg { display: block; }
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  :root {
+    --border: #666;
+    --border-strong: #333;
+  }
+}
+
+/* Theme transition smoothness */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Component theme-aware backgrounds */
+.panel {
+  background: var(--surface-0);
+}
+
+.sidebar {
+  background: var(--surface-1);
+}
+
+.modal,
+.drawer,
+.toast {
+  background: var(--surface-1);
+}
+
+input,
+select,
+textarea,
+button {
+  background: var(--surface-0);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+/* Theme-aware gradients for module headers */
+.deepdive__panel[data-module="telegram"] .deepdive__header {
+  border-image: var(--tg-accent-alpha) 1;
+}
+.deepdive__panel[data-module="darkweb"] .deepdive__header {
+  border-image: var(--dw-accent-alpha) 1;
+}
+.deepdive__panel[data-module="deepweb"] .deepdive__header {
+  border-image: var(--deep-accent-alpha) 1;
+}
