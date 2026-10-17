@@ -16,40 +16,15 @@ CF.App = (function () {
 
   const ICON_SIZE = 64;
 
-  const ENTITY_TYPES = {
-    person: { label: 'Person', color: '#4f46e5', icon: 'person' },
-    phone: { label: 'Phone', color: '#16a34a', icon: 'phone' },
-    email: { label: 'Email', color: '#ca8a04', icon: 'email' },
-    website: { label: 'Website', color: '#0891b2', icon: 'website' },
-    location: { label: 'Location', color: '#c026d3', icon: 'location' },
-    company: { label: 'Company', color: '#6d28d9', icon: 'company' },
-    image: { label: 'Image', color: '#be123c', icon: 'image' },
-    wallet: { label: 'Wallet', color: '#dc2626', icon: 'wallet' },
-    telegram: { label: 'Telegram', color: '#0088cc', icon: 'telegram' },
-    channel: { label: 'Channel', color: '#006699', icon: 'channel' },
-    bot: { label: 'Bot', color: '#009966', icon: 'bot' },
-    ip: { label: 'IP Address', color: '#f97316', icon: 'ip' },
-    domain: { label: 'Domain', color: '#0ea5e9', icon: 'domain' },
-    pgp: { label: 'PGP Key', color: '#a855f7', icon: 'pgp' },
-    document: { label: 'Document', color: '#fbbf24', icon: 'document' },
-    portal: { label: 'Portal', color: '#ef4444', icon: 'portal' },
-    marketplace: { label: 'Marketplace', color: '#fb923c', icon: 'marketplace' }
-  };
-
-  const GLOBAL_ACTIONS = {
-    save_png: { label: 'Save PNG', icon: 'download', action: () => exportPNG() },
-    save_json: { label: 'Save JSON', icon: 'export-json', action: () => exportJSON() },
-    load_json: { label: 'Load JSON', icon: 'import', action: () => document.getElementById('load-input').click() },
-    center_view: { label: 'Center View', icon: 'center', action: () => network.fit({ animation: true }) },
-    clear_canvas: { label: 'Clear All', icon: 'delete', action: () => clearCanvas(), danger: true },
-    show_help: { label: 'Help', icon: 'help', action: () => showHelp() }
-  };
-
   function init() {
     if (initialized) return;
     initialized = true;
 
     CF.Storage.seedAll();
+    CF.UI.init();
+
+    const savedTheme = CF.Storage.getTheme();
+    CF.Storage.applyTheme(savedTheme);
 
     const canvasContainer = document.getElementById('network-canvas');
     if (canvasContainer && typeof vis !== 'undefined') {
@@ -58,12 +33,12 @@ CF.App = (function () {
 
     renderEntityPalette();
     renderGlobalActions();
+    bindGlobalKeys();
     bindEvents();
-    restoreGraph();
+    bindThemeSwitch();
 
     setTimeout(() => {
       CF.UI.toast('CYBER-FORCE OSINT Deep-Dive initialized', { type: 'success' });
-      showHelp();
     }, 500);
   }
 
@@ -71,7 +46,7 @@ CF.App = (function () {
     nodes = new vis.DataSet([]);
     edges = new vis.DataSet([]);
 
-    const data = { nodes, edges };
+    const data = { nodes: nodes, edges: edges };
 
     const options = {
       interaction: {
@@ -79,7 +54,9 @@ CF.App = (function () {
         navigationButtons: false,
         keyboard: false,
         tooltipDelay: 100,
-        multiselect: true
+        multiselect: true,
+        zoomSpeed: 0.6,
+        zoomView: true
       },
       nodes: {
         shape: 'image',
@@ -94,19 +71,18 @@ CF.App = (function () {
         smooth: { enabled: true, type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }
       },
       physics: { enabled: false },
-      manipulation: { enabled: false }
+      manipulation: { enabled: false },
+      autoResize: true
     };
 
     network = new vis.Network(container, data, options);
 
     network.on('click', handleNetworkClick);
     network.on('doubleClick', handleNetworkDoubleClick);
-    network.on('dragStart', () => hideSizeSlider());
+    network.on('dragStart', hideSizeSlider);
     network.on('dragEnd', handleDragEnd);
-    network.on('zoom', () => hideSizeSlider());
-    network.on('viewChanged', () => {
-      if (nodes && edges) saveState();
-    });
+    network.on('zoom', hideSizeSlider);
+    network.on('viewChanged', saveState);
   }
 
   function renderEntityPalette() {
@@ -114,11 +90,11 @@ CF.App = (function () {
     if (!palette) return;
 
     palette.innerHTML = '';
-    Object.entries(ENTITY_TYPES).forEach(([type, entity]) => {
+    Object.entries(CF.Data.getAllEntityTypes()).forEach(([type, entity]) => {
       const btn = document.createElement('button');
-      btn.className = 'tooltip p-2 rounded-lg hover:bg-brand-surface transition-colors';
-      btn.innerHTML = `<span class="tooltiptext">${entity.label}</span>` + CF.Icons.get(entity.icon, { size: 'sm' });
-      btn.onclick = () => addNode(type);
+      btn.className = 'tooltip';
+      btn.innerHTML = '<span class="tooltiptext">' + entity.label + '</span>' + CF.Icons.get(entity.icon, { size: 24, color: entity.color });
+      btn.onclick = function() { addNode(type); };
       palette.appendChild(btn);
     });
   }
@@ -127,12 +103,19 @@ CF.App = (function () {
     const actions = document.getElementById('global-actions');
     if (!actions) return;
 
-    actions.innerHTML = '';
-    Object.entries(GLOBAL_ACTIONS).forEach(([key, action]) => {
+    const actionList = [
+      { label: 'Save JSON', icon: 'export-json', action: exportJSON },
+      { label: 'Save PNG', icon: 'export-png', action: exportPNG },
+      { label: 'Load JSON', icon: 'import', action: function() { document.getElementById('load-input').click(); } },
+      { label: 'Center', icon: 'center', action: function() { network.fit({ animation: true }); } },
+      { label: 'Clear', icon: 'delete', action: clearCanvas, danger: true }
+    ];
+
+    actionList.forEach(function(action) {
       const btn = document.createElement('button');
-      btn.className = `tooltip p-2 rounded-lg hover:bg-brand-surface transition-colors ${action.danger ? 'hover:bg-red-500' : ''}`;
-      btn.innerHTML = `<span class="tooltiptext">${action.label}</span>` + CF.Icons.get(action.icon, { size: 'sm' });
-      btn.onclick = (e) => {
+      btn.className = 'tooltip';
+      btn.innerHTML = '<span class="tooltiptext">' + action.label + '</span>' + CF.Icons.get(action.icon, { size: 20 });
+      btn.onclick = function(e) {
         e.stopPropagation();
         action.action();
       };
@@ -141,23 +124,24 @@ CF.App = (function () {
   }
 
   function createEntityIcon(type) {
-    const entity = ENTITY_TYPES[type];
-    if (!entity) return null;
+    const entity = CF.Data.getEntityType(type);
     const svg = CF.Icons.getSVG(entity.icon, { size: ICON_SIZE, color: entity.color });
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
 
   function addNode(type, canvasPos) {
     if (!network || !nodes) return;
-    if (type === 'image') {
-      document.getElementById('add-photo-input').click();
+
+    const entity = CF.Data.getEntityType(type);
+    if (!entity || type === 'image') {
+      if (type === 'image') {
+        document.getElementById('add-photo-input').click();
+      }
       return;
     }
 
-    const entity = ENTITY_TYPES[type];
-    if (!entity) return;
-
     const position = canvasPos || network.getViewPosition();
+
     const newNode = {
       entityType: type,
       x: position.x,
@@ -168,16 +152,19 @@ CF.App = (function () {
       color: { background: entity.color }
     };
 
-    nodes.add(newNode);
+    const added = nodes.add(newNode);
+    network.selectNode(added.id);
   }
 
   function addImageNodeFromFile(file, canvasPos) {
-    if (!file || !file.type.startsWith('image/')) return;
+    if (!file || !file.type.startsWith('image/') || !network || !nodes) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = function(e) {
       const position = canvasPos || network.getViewPosition();
+      const nodeId = 'img_' + Date.now();
       nodes.add({
+        id: nodeId,
         label: file.name,
         entityType: 'image',
         shape: 'image',
@@ -199,7 +186,7 @@ CF.App = (function () {
 
     if (isConnecting) {
       if (clickedNodeId && clickedNodeId !== connectionSourceNodeId) {
-        edges.add({ from: connectionSourceNodeId, to: clickedNodeId });
+        edges.add({ from: connectionSourceNodeId, to: clickedNodeId, label: 'connected' });
       }
       resetConnectionState();
       if (connectionSourceNodeId) network.selectNodes([connectionSourceNodeId]);
@@ -225,18 +212,20 @@ CF.App = (function () {
 
   function handleNetworkDoubleClick(params) {
     const nodeId = params.nodes[0];
-    if (nodeId) {
-      const node = nodes.get(nodeId);
-      CF.UI.modal('Edit Label', '', {
-        input: true,
-        inputValue: node.label,
-        onOk: (newLabel) => {
-          if (newLabel.trim()) {
-            nodes.update({ id: nodeId, label: newLabel });
-          }
+    if (!nodeId) return;
+
+    const node = nodes.get(nodeId);
+    if (!node) return;
+
+    CF.UI.modal('Edit Label', '', {
+      input: true,
+      inputValue: node.label || '',
+      onOk: function(newLabel) {
+        if (newLabel.trim()) {
+          nodes.update({ id: nodeId, label: newLabel });
         }
-      });
-    }
+      }
+    });
   }
 
   function handleDragEnd(params) {
@@ -251,9 +240,10 @@ CF.App = (function () {
     const btn = document.getElementById('edit-connect');
     if (btn) {
       btn.disabled = true;
-      btn.querySelector('span').textContent = 'Select target...';
+      const span = btn.querySelector('span');
+      if (span) span.textContent = 'Select target...';
     }
-    showToast('Select target node to create a connection');
+    CF.UI.toast('Select target node', { type: 'info' });
   }
 
   function resetConnectionState() {
@@ -262,7 +252,8 @@ CF.App = (function () {
     const btn = document.getElementById('edit-connect');
     if (btn) {
       btn.disabled = false;
-      btn.querySelector('span').textContent = 'Connect';
+      const span = btn.querySelector('span');
+      if (span) span.textContent = 'Connect';
     }
   }
 
@@ -272,57 +263,83 @@ CF.App = (function () {
 
     if (selectedNodeId) {
       const node = nodes.get(selectedNodeId);
-      const entity = ENTITY_TYPES[node.entityType];
-      editPanel.innerHTML = `
-        <h3 class="font-bold text-lg text-white">Edit Node</h3>
-        <p class="text-sm text-gray-400 -mt-2 mb-2">Type: ${entity ? entity.label : 'Unknown'}</p>
-        <div class="flex flex-col gap-4 text-sm">
-          <div>
-            <label for="edit-label" class="block text-xs text-gray-400 mb-1">Label</label>
-            <input type="text" id="edit-label" value="${node.label || ''}" class="w-full bg-brand-surface border border-brand-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-accent">
-          </div>
-          <button id="edit-connect" class="flex items-center justify-center gap-2 w-full px-3 py-2 bg-brand-surface hover:bg-brand-accent rounded-md transition-colors">
-            <span>Connect</span>
-          </button>
-          <div class="border-t border-brand-border my-1"></div>
-          <button id="edit-delete-node" class="flex items-center justify-center gap-2 w-full px-3 py-2 text-red-400 hover:bg-red-500 hover:text-white rounded-md transition-colors">
-            <span>Delete Node</span>
-          </button>
-        </div>
-      `;
+      const entity = CF.Data.getEntityType(node.entityType);
+      editPanel.innerHTML = '';
 
-      const labelInput = document.getElementById('edit-label');
-      if (labelInput) {
-        labelInput.oninput = (e) => nodes.update({ id: selectedNodeId, label: e.target.value });
-      }
+      const title = document.createElement('h3');
+      title.textContent = 'Edit Node';
+      title.className = 'font-bold text-lg';
+      editPanel.appendChild(title);
 
-      const connectBtn = document.getElementById('edit-connect');
-      if (connectBtn) connectBtn.onclick = startConnection;
+      const typeInfo = document.createElement('p');
+      typeInfo.textContent = 'Type: ' + entity.label;
+      typeInfo.className = 'text-sm';
+      editPanel.appendChild(typeInfo);
 
-      const deleteBtn = document.getElementById('edit-delete-node');
-      if (deleteBtn) {
-        deleteBtn.onclick = () => {
-          nodes.remove(selectedNodeId);
-          edges.remove(edges.get().filter(e => e.from === selectedNodeId || e.to === selectedNodeId).map(e => e.id));
-          showEditPanel(false);
-          CF.UI.toast('Node deleted', { type: 'info' });
-        };
-      }
+      const editRow = document.createElement('div');
+      editRow.className = 'edit-row';
+
+      const labelEl = document.createElement('label');
+      labelEl.textContent = 'Label';
+      editRow.appendChild(labelEl);
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.id = 'edit-label';
+      input.value = node.label || '';
+      input.oninput = function(e) {
+        nodes.update({ id: selectedNodeId, label: e.target.value });
+      };
+      editRow.appendChild(input);
+      editPanel.appendChild(editRow);
+
+      const connectBtn = document.createElement('button');
+      connectBtn.id = 'edit-connect';
+      connectBtn.className = 'edit-btn edit-btn-connect';
+      connectBtn.innerHTML = '<span>Connect</span>';
+      connectBtn.onclick = startConnection;
+      editPanel.appendChild(connectBtn);
+
+      const divider = document.createElement('div');
+      divider.className = 'border-t';
+      editPanel.appendChild(divider);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.id = 'edit-delete-node';
+      deleteBtn.className = 'edit-btn edit-btn-delete';
+      deleteBtn.innerHTML = '<span>Delete Node</span>';
+      deleteBtn.onclick = function() {
+        nodes.remove(selectedNodeId);
+        const edgeIds = edges.get().filter(function(e) {
+          return e.from === selectedNodeId || e.to === selectedNodeId;
+        }).map(function(e) { return e.id; });
+        edges.remove(edgeIds);
+        showEditPanel(false);
+        CF.UI.toast('Node deleted', { type: 'info' });
+      };
+      editPanel.appendChild(deleteBtn);
     } else if (selectedEdgeId) {
-      editPanel.innerHTML = `
-        <h3 class="font-bold text-lg text-white">Edit Connection</h3>
-        <p class="text-sm text-gray-400 -mt-2 mb-2">Selected edge</p>
-        <button id="edit-delete-edge" class="flex items-center justify-center gap-2 w-full px-3 py-2 text-red-400 hover:bg-red-500 hover:text-white rounded-md transition-colors">
-          <span>Delete Connection</span>
-        </button>
-      `;
-      const deleteEdgeBtn = document.getElementById('edit-delete-edge');
-      if (deleteEdgeBtn) {
-        deleteEdgeBtn.onclick = () => {
-          edges.remove(selectedEdgeId);
-          showEditPanel(false);
-        };
-      }
+      editPanel.innerHTML = '';
+
+      const title = document.createElement('h3');
+      title.textContent = 'Edit Connection';
+      title.className = 'font-bold text-lg';
+      editPanel.appendChild(title);
+
+      const info = document.createElement('p');
+      info.textContent = 'Selected edge';
+      info.className = 'text-sm';
+      editPanel.appendChild(info);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.id = 'edit-delete-edge';
+      deleteBtn.className = 'edit-btn edit-btn-delete';
+      deleteBtn.innerHTML = '<span>Delete Connection</span>';
+      deleteBtn.onclick = function() {
+        edges.remove(selectedEdgeId);
+        showEditPanel(false);
+      };
+      editPanel.appendChild(deleteBtn);
     }
   }
 
@@ -331,13 +348,16 @@ CF.App = (function () {
     if (!editPanel) return;
 
     if (isShown) {
-      editPanel.classList.remove('translate-x-[120%]');
-      setTimeout(() => {
+      editPanel.classList.add('show');
+      setTimeout(function() {
         const input = document.getElementById('edit-label');
-        if (input) { input.focus(); input.select(); }
-      }, 450);
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }, 350);
     } else {
-      editPanel.classList.add('translate-x-[120%]');
+      editPanel.classList.remove('show');
       selectedNodeId = null;
       selectedEdgeId = null;
     }
@@ -346,21 +366,13 @@ CF.App = (function () {
   function hideSizeSlider() {
     const container = document.getElementById('size-slider-container');
     if (!container) return;
-    if (!container.classList.contains('hidden')) {
-      container.classList.add('opacity-0');
-      setTimeout(() => {
-        container.classList.add('hidden');
-        container.classList.remove('flex');
-      }, 200);
-      const slider = document.getElementById('node-size-slider');
-      if (slider) slider.oninput = null;
-    }
+    container.classList.remove('show');
   }
 
   function showSizeSlider(nodeId) {
     const container = document.getElementById('size-slider-container');
     const slider = document.getElementById('node-size-slider');
-    if (!container || !slider || !network) return;
+    if (!container || !slider || !network || !nodes) return;
 
     const node = nodes.get(nodeId);
     if (!node) return;
@@ -376,73 +388,55 @@ CF.App = (function () {
     }
 
     const nodePosition = network.getPositions([nodeId]);
+    if (!nodePosition[nodeId]) return;
+
     const domPosition = network.canvasToDOM(nodePosition[nodeId]);
-    const nodeHeightOnCanvas = network.getBoundingBox(nodeId).bottom - network.getBoundingBox(nodeId).top;
+    const boundingBox = network.getBoundingBox(nodeId);
+    const nodeHeightOnCanvas = boundingBox.bottom - boundingBox.top;
     const scaledNodeHeight = nodeHeightOnCanvas * network.getScale();
 
-    container.classList.remove('hidden', 'opacity-0');
-    container.classList.add('flex');
-    container.style.left = `${domPosition.x - container.offsetWidth / 2}px`;
-    container.style.top = `${domPosition.y + (scaledNodeHeight / 2) + 10}px`;
+    container.classList.add('show');
+    container.style.left = (domPosition.x - container.offsetWidth / 2) + 'px';
+    container.style.top = (domPosition.y + (scaledNodeHeight / 2) + 10) + 'px';
 
-    slider.oninput = (e) => {
+    slider.oninput = function(e) {
       nodes.update({ id: nodeId, size: parseInt(e.target.value) });
     };
   }
 
-  function showToast(message, type) {
-    const container = document.getElementById('toast-container');
-    if (!container) return;
-
-    const toast = document.createElement('div');
-    toast.className = 'px-4 py-2 rounded-lg text-white shadow-lg fade-in ' + toastClass(type);
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.classList.remove('fade-in');
-      toast.classList.add('fade-out');
-      toast.addEventListener('animationend', () => toast.remove());
-    }, 3000);
-  }
-
-  function toastClass(type) {
-    switch (type) {
-      case 'success': return 'bg-green-500';
-      case 'error': return 'bg-red-500';
-      case 'warning': return 'bg-yellow-500';
-      default: return 'bg-blue-500';
-    }
-  }
-
   function saveState() {
-    if (!network) return;
+    if (!network || !nodes || !edges) return;
     network.storePositions();
+
     const graphData = {
       nodes: nodes.get({ fields: ['id', 'label', 'entityType', 'image', 'shape', 'size', 'x', 'y', 'color'] }),
       edges: edges.get(),
-      view: currentView
+      theme: CF.Storage.getTheme()
     };
+
     localStorage.setItem('CFGraph', JSON.stringify(graphData));
   }
 
   function restoreGraph() {
     const saved = localStorage.getItem('CFGraph');
-    if (saved && nodes && edges) {
-      try {
-        const data = JSON.parse(saved);
-        if (data.nodes) nodes.add(data.nodes);
-        if (data.edges) edges.add(data.edges);
-        if (data.view) currentView = data.view;
-      } catch (e) {
-        console.error('Failed to restore graph', e);
+    if (!saved || !nodes || !edges) return;
+
+    try {
+      const data = JSON.parse(saved);
+      if (data.nodes) nodes.add(data.nodes);
+      if (data.edges) edges.add(data.edges);
+      if (data.theme) {
+        CF.Storage.applyTheme(data.theme);
       }
+    } catch (e) {
+      console.error('Failed to restore graph', e);
     }
   }
 
   function exportJSON() {
     if (!nodes || !edges) return;
     saveState();
+
     const data = localStorage.getItem('CFGraph');
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -451,18 +445,24 @@ CF.App = (function () {
     a.download = 'cyberforce-investigation.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Investigation exported as JSON', 'success');
+    CF.UI.toast('Investigation exported as JSON', { type: 'success' });
   }
 
   function exportPNG() {
+    if (!network) return;
+
     const canvas = document.querySelector('#network-canvas canvas');
-    if (!canvas) return;
+    if (!canvas) {
+      CF.UI.toast('Unable to export PNG', { type: 'error' });
+      return;
+    }
+
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const ctx = tempCanvas.getContext('2d');
 
-    const isNight = document.documentElement.getAttribute('data-theme') === 'night';
+    const isNight = CF.UI.getTheme() === 'night' || CF.Storage.getTheme() === 'night';
     ctx.fillStyle = isNight ? '#0a0a0a' : '#f5f6fa';
     ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
     ctx.drawImage(canvas, 0, 0);
@@ -472,17 +472,17 @@ CF.App = (function () {
     const textFontSize = 18;
     const brandText = 'CYBER-FORCE OSINT';
 
-    ctx.font = `bold ${textFontSize}px Orbitron`;
+    ctx.font = 'bold ' + textFontSize + 'px Orbitron';
     const textWidth = ctx.measureText(brandText).width;
     const brandWidth = logoSize + 10 + textWidth;
+
     const logoX = tempCanvas.width - padding - brandWidth;
     const logoY = tempCanvas.height - padding - logoSize;
-
     const logoPath = new Path2D('M12 2L2 7V12C2 17.5 6.5 21.5 12 22C17.5 21.5 22 17.5 22 12V7L12 2Z M2 7L12 12 M12 22V12 M22 7L12 12 M17 4.5L7 9.5');
 
     ctx.save();
     ctx.translate(logoX, logoY);
-    const scale = logoSize / 24;
+    var scale = logoSize / 24;
     ctx.scale(scale, scale);
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 2 / scale;
@@ -498,41 +498,127 @@ CF.App = (function () {
     a.href = tempCanvas.toDataURL('image/png');
     a.download = 'cyberforce-investigation.png';
     a.click();
-    showToast('Investigation exported as PNG', 'success');
+    CF.UI.toast('Investigation exported as PNG', { type: 'success' });
   }
 
   function clearCanvas() {
     if (!nodes || !edges) return;
+
     CF.UI.confirm('Clear entire canvas?', {
+      title: 'Confirm Clear',
       buttons: [
-        { label: 'Clear', variant: 'danger', onClick: () => {
-          nodes.clear();
-          edges.clear();
-          selectedNodeId = null;
-          selectedEdgeId = null;
-          showEditPanel(false);
-          saveState();
-          showToast('Canvas cleared', 'info');
-        }},
+        {
+          label: 'Clear',
+          variant: 'danger',
+          onClick: function() {
+            nodes.clear();
+            edges.clear();
+            selectedNodeId = null;
+            selectedEdgeId = null;
+            showEditPanel(false);
+            saveState();
+            CF.UI.toast('Canvas cleared', { type: 'info' });
+          }
+        },
         { label: 'Cancel', variant: 'ghost' }
       ]
     });
   }
 
   function showHelp() {
-    const body = `
-      <div class="space-y-2">
-        <p><strong>CYBER-FORCE OSINT Deep-Dive</strong> — Investigation visualization tool.</p>
-        <p>• <strong>Add Nodes:</strong> Use the entity palette at the bottom to place objects on the canvas.</p>
-        <p>• <strong>Connect Nodes:</strong> Select a node, click "Connect", then select a target node.</p>
-        <p>• <strong>Edit:</strong> Double-click a node label, or use the right-side edit panel.</p>
-        <p>• <strong>Context Menu:</strong> Right-click on canvas or nodes for quick actions.</p>
-        <p>• <strong>Navigation:</strong> Mouse wheel to zoom, drag to pan.</p>
-        <p>• <strong>Export:</strong> Save your investigation as JSON or PNG.</p>
-        <p><strong>Tip:</strong> Your graph persists automatically in local storage.</p>
-      </div>
-    `;
-    CF.UI.modal('CYBER-FORCE Help', body, { size: 'md', closable: true });
+    const body = '<div class="space-y-2">' +
+      '<p><strong>CYBER-FORCE OSINT Deep-Dive</strong> — Network graph visualization tool.</p>' +
+      '<p>• <strong>Add Nodes:</strong> Use the entity palette at the bottom to place objects on the canvas.</p>' +
+      '<p>• <strong>Connect Nodes:</strong> Select a node, click "Connect", then select a target node.</p>' +
+      '<p>• <strong>Edit:</strong> Double-click a node to edit its label, or use the right-side edit panel.</p>' +
+      '<p>• <strong>Context Menu:</strong> Right-click on canvas or nodes for quick actions.</p>' +
+      '<p>• <strong>Navigation:</strong> Mouse wheel to zoom, drag to pan.</p>' +
+      '<p>• <strong>Export:</strong> Save your investigation as JSON or PNG.</p>' +
+      '<p><strong>Tip:</strong> Your graph persists automatically in local storage.</p>' +
+      '</div>';
+
+    CF.UI.modal('CYBER-FORCE Help', body, { closable: true });
+  }
+
+  function bindThemeSwitch() {
+    const switcher = document.getElementById('theme-switcher');
+    if (!switcher) return;
+
+    const savedTheme = CF.Storage.getTheme();
+    const activeBtn = switcher.querySelector('button[data-theme="' + savedTheme + '"]');
+    if (activeBtn) activeBtn.classList.add('active');
+
+    switcher.addEventListener('click', function(e) {
+      const btn = e.target.closest('button[data-theme]');
+      if (!btn) return;
+
+      const theme = btn.getAttribute('data-theme');
+      if (theme) {
+        CF.Storage.setTheme(theme);
+        saveState();
+        CF.UI.toast('Theme: ' + theme, { type: 'info' });
+      }
+    });
+  }
+
+  function bindGlobalKeys() {
+    document.addEventListener('keydown', function(e) {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      if (e.key === 'Delete') {
+        if (selectedNodeId && nodes) {
+          nodes.remove(selectedNodeId);
+          selectedNodeId = null;
+          showEditPanel(false);
+        } else if (selectedEdgeId && edges) {
+          edges.remove(selectedEdgeId);
+          selectedEdgeId = null;
+          showEditPanel(false);
+        }
+      }
+
+      if (e.key === 'Escape') {
+        resetConnectionState();
+        showEditPanel(false);
+      }
+
+      if (e.key === '+' || e.key === '-') {
+        if (network) {
+          const scale = network.getScale();
+          network.moveTo({ scale: e.key === '+' ? scale * 1.2 : scale * 0.8, animation: true });
+        }
+      }
+
+      if (e.ctrlKey && e.key === 'd' || e.metaKey && e.key === 'd') {
+        e.preventDefault();
+        CF.Storage.setTheme(CF.Storage.getTheme() === 'night' ? 'day' : 'night');
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        showHelp();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        exportJSON();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        exportPNG();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        clearCanvas();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        document.getElementById('load-input').click();
+      }
+    });
   }
 
   function bindEvents() {
@@ -542,7 +628,7 @@ CF.App = (function () {
     const contextMenu = document.getElementById('context-menu');
 
     if (photoInput) {
-      photoInput.onchange = (e) => {
+      photoInput.onchange = function(e) {
         if (e.target.files.length > 0) {
           const pos = network ? network.getViewPosition() : { x: 0, y: 0 };
           addImageNodeFromFile(e.target.files[0], pos);
@@ -552,7 +638,7 @@ CF.App = (function () {
     }
 
     if (loadInput) {
-      loadInput.onchange = (e) => {
+      loadInput.onchange = function(e) {
         if (e.target.files.length > 0) {
           loadState(e.target.files[0]);
           e.target.value = '';
@@ -561,12 +647,14 @@ CF.App = (function () {
     }
 
     if (dropOverlay) {
-      dropOverlay.addEventListener('dragover', (e) => e.preventDefault());
+      dropOverlay.addEventListener('dragover', function(e) {
+        e.preventDefault();
+      });
 
-      dropOverlay.addEventListener('drop', (e) => {
+      dropOverlay.addEventListener('drop', function(e) {
         e.preventDefault();
         dragCounter = 0;
-        dropOverlay.classList.add('hidden');
+        dropOverlay.classList.remove('show');
 
         if (e.dataTransfer.files.length > 0) {
           const file = e.dataTransfer.files[0];
@@ -580,81 +668,96 @@ CF.App = (function () {
       });
     }
 
-    window.addEventListener('dragenter', (e) => {
+    window.addEventListener('dragenter', function(e) {
       e.preventDefault();
       dragCounter++;
-      if (dropOverlay) dropOverlay.classList.remove('hidden');
+      if (dropOverlay) dropOverlay.classList.add('show');
     });
 
-    window.addEventListener('dragleave', (e) => {
+    window.addEventListener('dragleave', function(e) {
       e.preventDefault();
       dragCounter--;
-      if (dragCounter <= 0 && dropOverlay) dropOverlay.classList.add('hidden');
+      if (dragCounter <= 0 && dropOverlay) dropOverlay.classList.remove('show');
     });
 
-    document.addEventListener('contextmenu', (e) => {
-      if (contextMenu) {
-        e.preventDefault();
-        const pos = { x: e.clientX, y: e.clientY };
-        const nodeId = network ? network.getNodeAt(pos) : null;
+    document.addEventListener('contextmenu', function(e) {
+      if (!contextMenu || !network) return;
 
-        let menuHTML = '';
-        if (nodeId) {
-          menuHTML = `
-            <button data-action="delete" class="text-left w-full px-3 py-1.5 hover:bg-brand-surface rounded">Delete Node</button>
-            <button data-action="connect" class="text-left w-full px-3 py-1.5 hover:bg-brand-surface rounded">Connect</button>
-          `;
-        } else {
-          Object.entries(ENTITY_TYPES).forEach(([type, entity]) => {
-            menuHTML += `<button data-action="add" data-type="${type}" class="text-left w-full px-3 py-1.5 hover:bg-brand-surface rounded">Add "${entity.label}"</button>`;
+      e.preventDefault();
+      const pos = { x: e.clientX, y: e.clientY };
+      const nodeId = network.getNodeAt(pos);
+
+      contextMenu.innerHTML = '';
+
+      if (nodeId) {
+        const btn1 = createContextBtn('Delete Node', function() {
+          nodes.remove(nodeId);
+          const edgeIds = edges.get().filter(function(edg) {
+            return edg.from === nodeId || edg.to === nodeId;
+          }).map(function(edg) { return edg.id; });
+          edges.remove(edgeIds);
+          contextMenu.classList.remove('show');
+          CF.UI.toast('Node deleted', { type: 'info' });
+        });
+        const btn2 = createContextBtn('Connect', function() {
+          network.selectNodes([nodeId]);
+          selectedNodeId = nodeId;
+          startConnection();
+          contextMenu.classList.remove('show');
+        });
+        contextMenu.appendChild(btn1);
+        contextMenu.appendChild(btn2);
+      } else {
+        Object.entries(CF.Data.getAllEntityTypes()).forEach(function(entry) {
+          const type = entry[0];
+          const entity = entry[1];
+          const btn = createContextBtn('Add "' + entity.label + '"', function() {
+            addNode(type);
+            contextMenu.classList.remove('show');
           });
-        }
-
-        contextMenu.innerHTML = menuHTML;
-        contextMenu.style.left = `${pos.x}px`;
-        contextMenu.style.top = `${pos.y}px`;
-        contextMenu.classList.remove('hidden');
-        contextMenu.onclick = (event) => {
-          const btn = event.target.closest('button');
-          if (!btn) return;
-          const action = btn.dataset.action;
-          if (action === 'delete' && nodeId) {
-            nodes.remove(nodeId);
-            edges.remove(edges.get().filter(e => e.from === nodeId || e.to === nodeId).map(e => e.id));
-          }
-          if (action === 'connect' && nodeId) {
-            network.selectNodes([nodeId]);
-            selectedNodeId = nodeId;
-            startConnection();
-          }
-          if (action === 'add') {
-            addNode(btn.dataset.type);
-          }
-          contextMenu.classList.add('hidden');
-        };
+          contextMenu.appendChild(btn);
+        });
       }
+
+      contextMenu.style.left = pos.x + 'px';
+      contextMenu.style.top = pos.y + 'px';
+      contextMenu.classList.add('show');
     });
 
-    document.addEventListener('click', () => {
-      if (contextMenu) contextMenu.classList.add('hidden');
+    document.addEventListener('click', function() {
+      if (contextMenu) contextMenu.classList.remove('show');
     });
+  }
+
+  function createContextBtn(label, onClick) {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.onclick = onClick;
+    return btn;
   }
 
   function loadState(file) {
     if (!file || !nodes || !edges) return;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = function(e) {
       try {
         const graphData = JSON.parse(e.target.result);
-        CF.UI.confirm('Overwrite current graph?', {
+        CF.UI.confirm('Load investigation?', {
+          title: 'Confirm Load',
+          body: 'Current canvas will be replaced.',
           buttons: [
-            { label: 'Yes, Load', variant: 'primary', onClick: () => {
-              nodes.clear();
-              edges.clear();
-              if (graphData.nodes) nodes.add(graphData.nodes);
-              if (graphData.edges) edges.add(graphData.edges);
-              showToast('Investigation loaded', 'success');
-            }},
+            {
+              label: 'Load',
+              variant: 'primary',
+              onClick: function() {
+                nodes.clear();
+                edges.clear();
+                if (graphData.nodes) nodes.add(graphData.nodes);
+                if (graphData.edges) edges.add(graphData.edges);
+                CF.UI.toast('Investigation loaded', { type: 'success' });
+              }
+            },
             { label: 'Cancel', variant: 'ghost' }
           ]
         });
@@ -665,19 +768,17 @@ CF.App = (function () {
     reader.readAsText(file);
   }
 
-  function getCurrentView() { return currentView; }
-  function setCurrentView(view) { currentView = view; }
-
   return {
     init,
-    getCurrentView,
-    setCurrentView,
-    addNode,
-    showToast,
-    saveState,
-    restoreGraph,
-    getNetwork: () => network,
-    getNodes: () => nodes,
-    getEdges: () => edges
+    getNetwork: function() { return network; },
+    getNodes: function() { return nodes; },
+    getEdges: function() { return edges; },
+    addNode: addNode,
+    saveState: saveState,
+    restoreGraph: restoreGraph,
+    exportJSON: exportJSON,
+    exportPNG: exportPNG,
+    showHelp: showHelp,
+    clearCanvas: clearCanvas
   };
 })();

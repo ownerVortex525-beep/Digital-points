@@ -3,312 +3,214 @@ window.CF = window.CF || {};
 CF.UI = (function () {
   'use strict';
 
-  let toastContainer;
-  let modalStack = [];
-  let lastFocusedEl = null;
-  let reducedMotion = false;
-  let theme = 'day';
+  let toastContainer = null;
 
-  const SHORTCUTS = {
-    'g d': 'go to Deep-Dive',
-    '1': 'switch to Telegram sub-tab',
-    '2': 'switch to Dark Web sub-tab',
-    '3': 'switch to Deep Web sub-tab',
-    '/': 'focus search',
-    'c': 'add selected to Trace Chain',
-    's': 'send to main graph',
-    '?': 'show this help',
-    'Esc': 'close top layer'
-  };
-
-  function qs(sel, ctx) { return (ctx || document).querySelector(sel); }
-  function qsa(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
-
-  function createEl(tag, props = {}, children = []) {
-    const el = document.createElement(tag);
-    Object.entries(props).forEach(([k, v]) => {
-      if (k === 'class') { el.className = v; }
-      else if (k === 'html') { el.innerHTML = v; }
-      else if (k.startsWith('aria-')) { el.setAttribute(k, v); }
-      else if (k in el) { el[k] = v; }
-      else { el.setAttribute(k, v); }
-    });
-    children.forEach(c => el.appendChild(
-      typeof c === 'string' ? document.createTextNode(c) : c
-    ));
-    return el;
+  function init() {
+    toastContainer = document.getElementById('toast-container');
   }
 
-  function initReducedMotion() {
-    reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    document.body.classList.toggle('reduced-motion', reducedMotion);
-  }
+  function toast(message, opts) {
+    opts = opts || {};
+    const type = opts.type || 'info';
+    const duration = opts.duration || 3000;
 
-  function initTheme() {
-    const saved = localStorage.getItem('cf.theme');
-    theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day');
-    applyTheme(theme);
-  }
-
-  function applyTheme(t) {
-    theme = t;
-    document.body.setAttribute('data-theme', theme);
-    localStorage.setItem('cf.theme', theme);
-  }
-
-  function toggleTheme() {
-    applyTheme(theme === 'day' ? 'night' : 'day');
-  }
-
-  function isReducedMotion() { return reducedMotion; }
-  function getTheme() { return theme; }
-
-  function initToastContainer() {
-    toastContainer = createEl('div', {
-      id: 'toast-container',
-      class: 'toast-container',
-      'aria-live': 'polite',
-      'aria-atomic': 'true'
-    });
-    document.body.appendChild(toastContainer);
-  }
-
-  function toast(message, options = {}) {
-    const opts = Object.assign({
-      duration: 4000,
-      type: 'info',
-      action: null
-    }, options);
-
-    const iconMap = {
-      info: 'info', warning: 'alert', error: 'alert', success: 'check'
-    };
-    const icon = CF.Icons ? CF.Icons.get(iconMap[opts.type] || 'info', { size: 'sm' }) : '';
-
-    const toastEl = createEl('div', {
-      class: `toast toast--${opts.type}`,
-      'aria-live': opts.type === 'error' ? 'assertive' : 'off'
-    });
-
-    const content = createEl('div', { class: 'toast__content' });
-    content.innerHTML = icon + message;
-    toastEl.appendChild(content);
-
-    if (opts.action) {
-      const btn = createEl('button', {
-        type: 'button',
-        class: 'toast__action',
-        textContent: opts.action.label,
-        onclick: () => {
-          if (opts.action.onClick) opts.action.onClick();
-          dismiss(toastEl);
-        }
-      });
-      toastEl.appendChild(btn);
-    }
-
-    const dismissBtn = createEl('button', {
-      type: 'button',
-      class: 'toast__close',
-      html: CF.Icons ? CF.Icons.get('close', { size: 'sm' }) : '×',
-      'aria-label': 'Dismiss',
-      onclick: () => dismiss(toastEl)
-    });
-    toastEl.appendChild(dismissBtn);
+    const toastEl = document.createElement('div');
+    toastEl.className = 'toast ' + type;
+    toastEl.textContent = message;
 
     toastContainer.appendChild(toastEl);
-    requestAnimationFrame(() => toastEl.classList.add('show'));
-
-    let timeout = setTimeout(() => dismiss(toastEl), opts.duration);
-
-    function dismiss() {
-      clearTimeout(timeout);
-      toastEl.classList.remove('show');
-      toastEl.addEventListener('transitionend', () => {
-        if (toastEl.parentNode) toastEl.parentNode.removeChild(toastEl);
-      }, { once: true });
-    }
-
-    return { element: toastEl, dismiss };
-  }
-
-  function modal(title, content, options = {}) {
-    const opts = Object.assign({
-      closable: true,
-      size: 'md',
-      buttons: [],
-      onClose: null
-    }, options);
-
-    lastFocusedEl = document.activeElement;
-    const scrollY = window.scrollY;
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-
-    const overlay = createEl('div', {
-      class: 'modal-overlay',
-      'data-size': opts.size,
-      onclick: opts.closable ? closeModal : null
-    });
-
-    const dialog = createEl('div', {
-      class: 'modal',
-      role: 'dialog',
-      'aria-modal': 'true',
-      'aria-labelledby': 'modal-title',
-      tabindex: '-1'
-    });
-    overlay.appendChild(dialog);
-
-    const header = createEl('div', { class: 'modal__header' });
-    header.innerHTML = `<h2 id="modal-title">${title}</h2>`;
-    if (opts.closable) {
-      header.appendChild(createEl('button', {
-        type: 'button',
-        class: 'modal__close',
-        html: CF.Icons ? CF.Icons.get('close') : '×',
-        'aria-label': 'Close',
-        onclick: closeModal
-      }));
-    }
-    dialog.appendChild(header);
-
-    const body = createEl('div', {
-      class: 'modal__body',
-      html: typeof content === 'string' ? content : ''
-    });
-    if (typeof content === 'object' && content.nodeType) {
-      body.innerHTML = '';
-      body.appendChild(content);
-    }
-    dialog.appendChild(body);
-
-    const footer = createEl('div', { class: 'modal__footer' });
-    opts.buttons.forEach(btn => {
-      footer.appendChild(createEl('button', {
-        type: 'button',
-        class: `btn ${btn.variant ? 'btn--' + btn.variant : 'btn--primary'}`,
-        textContent: btn.label,
-        onclick: (e) => {
-          e.preventDefault();
-          const result = btn.onClick ? btn.onClick() : null;
-          if (result !== false) closeModal(result);
-        }
-      }));
-    });
-    if (opts.closable) {
-      footer.appendChild(createEl('button', {
-        type: 'button',
-        class: 'btn btn--ghost',
-        textContent: 'Cancel',
-        onclick: closeModal
-      }));
-    }
-    dialog.appendChild(footer);
-
-    document.body.appendChild(overlay);
-    modalStack.push({ overlay, dialog, onRemove: opts.onClose });
 
     setTimeout(() => {
-      dialog.focus();
-    }, 50);
-
-    function closeModal(result) {
-      const entry = modalStack.pop();
-      if (entry && entry.onRemove) entry.onRemove();
-      overlay.classList.add('closing');
-      overlay.addEventListener('transitionend', () => {
-        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-        document.body.style.position = '';
-        document.body.style.top = '';
-        window.scrollTo(0, parseInt(document.body.style.top || '0') * -1 || 0);
-        if (lastFocusedEl) lastFocusedEl.focus();
-      }, { once: true });
-    }
-
-    function trapFocus(e) {
-      if (e.key === 'Escape' && opts.closable) {
-        e.preventDefault();
-        closeModal();
-        return;
-      }
-      const focusables = dialog.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.key === 'Tab') {
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
+      toastEl.classList.add('fade-out');
+      toastEl.addEventListener('animationend', () => {
+        if (toastEl.parentNode) {
+          toastEl.parentNode.removeChild(toastEl);
         }
-      }
-    }
-    dialog.addEventListener('keydown', trapFocus);
+      });
+    }, duration);
+  }
 
-    return {
-      close: closeModal,
-      body,
-      dialog
+  function modal(title, body, opts) {
+    opts = opts || {};
+    const container = document.getElementById('modal-container');
+    const titleEl = document.getElementById('modal-title');
+    const bodyEl = document.getElementById('modal-body');
+    const inputEl = document.getElementById('modal-input');
+    const buttonsEl = document.getElementById('modal-buttons');
+    const okBtn = document.getElementById('modal-ok');
+    const cancelBtn = document.getElementById('modal-cancel');
+
+    titleEl.textContent = title;
+    bodyEl.innerHTML = body;
+
+    if (opts.input) {
+      inputEl.value = opts.inputValue || '';
+      inputEl.style.display = 'block';
+      if (opts.inputPlaceholder) inputEl.placeholder = opts.inputPlaceholder;
+    } else {
+      inputEl.style.display = 'none';
+    }
+
+    buttonsEl.innerHTML = '';
+
+    const okLabel = opts.okLabel || 'OK';
+    const cancelLabel = opts.cancelLabel || 'Cancel';
+
+    const okButton = document.createElement('button');
+    okButton.id = 'modal-ok';
+    okButton.textContent = okLabel;
+    buttonsEl.appendChild(okButton);
+
+    if (opts.closable !== false) {
+      const cancelButton = document.createElement('button');
+      cancelButton.id = 'modal-cancel';
+      cancelButton.textContent = cancelLabel;
+      buttonsEl.appendChild(cancelButton);
+    }
+
+    container.classList.add('show');
+
+    const cleanup = () => {
+      container.classList.remove('show');
+      document.onkeydown = null;
+    };
+
+    const okHandler = () => {
+      if (opts.onOk) {
+        opts.onOk(inputEl.value);
+      }
+      cleanup();
+    };
+
+    const cancelHandler = () => {
+      if (opts.onCancel) {
+        opts.onCancel();
+      }
+      cleanup();
+    };
+
+    okBtn.onclick = okHandler;
+    cancelBtn.onclick = cancelHandler;
+
+    document.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        okHandler();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelHandler();
+      }
     };
   }
 
-  function confirmDialog(message, options = {}) {
-    return new Promise((resolve) => {
-      modal('Confirm', message, {
-        size: 'sm',
-        buttons: [
-          { label: 'Confirm', variant: 'danger', onClick: () => resolve(true) },
-          { label: 'Cancel', variant: 'ghost', onClick: () => resolve(false) }
-        ],
-        onClose: () => resolve(false)
-      });
+  function confirm(message, opts) {
+    opts = opts || {};
+    const buttons = opts.buttons || [
+      { label: 'OK', variant: 'primary', onClick: function() {} },
+      { label: 'Cancel', variant: 'ghost' }
+    ];
+
+    const body = '<p>' + message + '</p>';
+    const buttonsHtml = buttons.map(function(btn) {
+      return '<button data-action="' + btn.variant + '" style="flex:1">' + btn.label + '</button>';
+    }).join('');
+
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.innerHTML = '<div class="flex gap-2 mt-4">' + buttonsHtml + '</div>';
+
+    const container = document.getElementById('modal-container');
+    const titleEl = document.getElementById('modal-title');
+    const bodyEl = document.getElementById('modal-body');
+    const buttonsEl = document.getElementById('modal-buttons');
+    const inputEl = document.getElementById('modal-input');
+
+    titleEl.textContent = opts.title || 'Confirm';
+    bodyEl.innerHTML = body;
+    inputEl.style.display = 'none';
+    buttonsEl.innerHTML = '';
+
+    buttons.forEach(function(btn, i) {
+      const button = buttonsContainer.querySelectorAll('button')[i];
+      button.onclick = function() {
+        if (btn.onClick) btn.onClick();
+        container.classList.remove('show');
+        document.onkeydown = null;
+      };
+      buttonsEl.appendChild(button.cloneNode(true));
     });
+
+    container.classList.add('show');
+
+    document.onkeydown = function(e) {
+      if (e.key === 'Escape') {
+        container.classList.remove('show');
+        document.onkeydown = null;
+      }
+    };
   }
 
   function showShortcuts() {
-    const rows = Object.entries(SHORTCUTS).map(([k, v]) =>
-      `<tr><td><kbd>${k}</kbd></td><td>${v}</td></tr>`
-    ).join('');
-    modal('Keyboard Shortcuts', `<table class="shortcuts-table"><tbody>${rows}</tbody></table>`, { size: 'sm' });
+    const body = `
+      <div class="space-y-2">
+        <p><strong>CYBER-FORCE OSINT Shortcuts</strong></p>
+        <div class="shortcuts-table">
+          <table>
+            <tr><td>Ctrl/Cmd + D</td><td>Toggle Day/Night theme</td></tr>
+            <tr><td>Ctrl/Cmd + E</td><td>Export JSON</td></tr>
+            <tr><td>Ctrl/Cmd + P</td><td>Export PNG</td></tr>
+            <tr><td>Ctrl/Cmd + N</td><td>New (clear canvas)</td></tr>
+            <tr><td>Ctrl/Cmd + O</td><td>Load JSON</td></tr>
+            <tr><td>Delete</td><td>Delete selected node/edge</td></tr>
+            <tr><td>DoubleClick</td><td>Edit node label</td></tr>
+            <tr><td>Right Click</td><td>Context menu</td></tr>
+            <tr><td>Mouse Wheel</td><td>Zoom in/out</td></tr>
+            <tr><td>Drag</td><td>Pan canvas</td></tr>
+            <tr><td>+/-</td><td>Zoom in/out</td></tr>
+          </table>
+        </div>
+      </div>
+    `;
+
+    const container = document.getElementById('modal-container');
+    const titleEl = document.getElementById('modal-title');
+    const bodyEl = document.getElementById('modal-body');
+    const buttonsEl = document.getElementById('modal-buttons');
+    const inputEl = document.getElementById('modal-input');
+
+    titleEl.textContent = 'Keyboard Shortcuts';
+    bodyEl.innerHTML = body;
+    inputEl.style.display = 'none';
+    buttonsEl.innerHTML = '';
+    container.classList.add('show');
+
+    const okBtn = document.createElement('button');
+    okBtn.id = 'modal-ok';
+    okBtn.textContent = 'OK';
+    buttonsEl.appendChild(okBtn);
+
+    okBtn.onclick = function() {
+      container.classList.remove('show');
+    };
   }
 
-  function initKeyHandling() {
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '?' && !e.target.matches('input, textarea, [contenteditable]')) {
-        e.preventDefault();
-        showShortcuts();
-        return;
-      }
-      if (e.key === 'Escape') {
-        if (modalStack.length > 0) {
-          const top = modalStack[modalStack.length - 1];
-        }
-      }
-    });
+  function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'night' ? 'day' : 'night';
+    CF.Storage.setTheme(newTheme);
   }
 
-  function init() {
-    initTheme();
-    initReducedMotion();
-    initToastContainer();
-    initKeyHandling();
+  function getTheme() {
+    return document.documentElement.getAttribute('data-theme') || 'night';
   }
 
   return {
     init,
     toast,
     modal,
-    confirm: confirmDialog,
+    confirm,
     showShortcuts,
     toggleTheme,
-    getTheme,
-    isReducedMotion,
-    createEl,
-    qs,
-    qsa,
-    SHORTCUTS
+    getTheme
   };
 })();

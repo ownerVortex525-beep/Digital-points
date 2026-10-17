@@ -1,335 +1,108 @@
-/* =============================================================================
-   CYBER-FORCE — Animation Library
-   All animations wrapped by reduced-motion override
-============================================================================= */
+/* ===== Animations ===== */
 
-/* Global disabled state */
-.reduced-motion *,
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* Fade */
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
 }
-
-/* ===================== BUBBLE POP ===================== */
-@keyframes bubble-pop {
-  0% { transform: scale(0.3); opacity: 0; }
-  70% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
+.fade-out {
+  animation: fadeOut 0.3s ease-in forwards;
 }
-.bubble-pop {
-  animation: bubble-pop 0.5s ease-out;
-}
-
-/* ===================== TYPING DOTS ===================== */
-@keyframes typing-dots {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
-}
-.typing-dots span {
-  display: inline-block;
-  width: 4px;
-  height: 4px;
-  margin: 0 1px;
-  background: currentColor;
-  border-radius: 50%;
-  animation: typing-dots 1.4s infinite ease-in-out both;
-}
-.typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-.typing-dots span:nth-child(3) { animation-delay: -0.32s; }
-
-/* ===================== FORWARD PULSE ===================== */
-@keyframes forward-pulse {
-  0% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: 20; }
-}
-.forward-pulse {
-  animation: forward-pulse 2s linear infinite;
-  stroke-dasharray: 6,4;
-}
-
-/* ===================== ROUTE DRAW ===================== */
-@keyframes route-draw {
-  from { stroke-dashoffset: 100; }
-  to { stroke-dashoffset: 0; }
-}
-.route-draw {
-  stroke-dasharray: 100;
-  animation: route-draw 1.5s ease-in-out forwards;
-}
-
-/* ===================== TERMINAL TYPE ===================== */
-@keyframes terminal-type {
-  from { width: 0; }
-  to { width: 100%; }
-}
-.terminal-type {
-  overflow: hidden;
-  border-right: 2px solid var(--dw-accent);
-  white-space: nowrap;
-  margin: 0 auto;
-  animation: terminal-type 3.2s steps(40, end) 1s normal;
-  animation-fill-mode: forwards;
-}
-
-/* ===================== RADAR SWEEP ===================== */
-@keyframes radar-sweep {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-.radar-sweep {
-  animation: radar-sweep 6s linear infinite;
-  transform-origin: center;
-}
-
-/* ===================== SONAR PING ===================== */
-@keyframes sonar-ping {
-  0% { r: 0; opacity: 0.8; }
-  70% { r: 60; opacity: 0; }
-  100% { opacity: 0; }
-}
-.sonar-ping {
-  animation: sonar-ping 2s ease-out infinite;
-}
-
-/* ===================== LAYER REVEAL ===================== */
-@keyframes layer-reveal {
-  from { opacity: 0; transform: scale(0.8); }
-  to { opacity: 1; transform: scale(1); }
-}
-.layer-reveal {
-  animation: layer-reveal 0.8s ease-out;
-}
-
-/* ===================== BUBBLE RISE ===================== */
-@keyframes bubble-rise {
-  from { transform: translateY(0) scale(1); opacity: 0.7; }
-  to { transform: translateY(-20px) scale(1.2); opacity: 0; }
-}
-@keyframes bubble-rise-alt {
-  from { transform: translateY(0) scale(1); opacity: 0.5; }
-  to { transform: translateY(-30px) scale(1.5); opacity: 0; }
-}
-.bubble-rise {
-  animation: bubble-rise 4s ease-in infinite;
-}
-.bubble-rise-alt {
-  animation: bubble-rise-alt 5s ease-in infinite;
-}
-
-/* ===================== MATCH BEAM ===================== */
-@keyframes match-beam {
-  0% { stroke: #ffc107; stroke-width: 1; stroke-opacity: 0; }
-  20% { stroke-opacity: 0.6; }
-  80% { stroke-opacity: 0.8; }
-  100% { stroke: #ffc107; stroke-width: 2; stroke-opacity: 0; }
-}
-.match-beam {
-  animation: match-beam 2s ease-in-out 1;
-}
-
-/* ===================== CHAIN ARROW ===================== */
-@keyframes chain-arrow {
-  from { stroke-dashoffset: 100; opacity: 0; }
-  to { stroke-dashoffset: 0; opacity: 1; }
-}
-.chain-arrow {
-  stroke-dasharray: 100;
-  animation: chain-arrow 1s ease-in-out forwards;
-}
-
-/* ===================== PULSE RING (Dark Web) ===================== */
-@keyframes pulse-ring {
-  0% { r: 12; stroke-width: 4; stroke-opacity: 0.5; }
-  100% { r: 30; stroke-width: 0; stroke-opacity: 0; }
-}
-.pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
-}
-
-/* ===================== PULSE GLOW (Deep Web) ===================== */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px currentColor, 0 0 10px currentColor; }
-  50% { box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor; }
-}
-.pulse-glow {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* ===================== FADE IN ===================== */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes fade-in-up {
+@keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-@keyframes fade-in-down {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(10px); }
 }
 
-/* ===================== STAGGER (container) ===================== */
-.stagger-children > * {
-  opacity: 0;
-  animation: fade-in-up 0.5s ease-out forwards;
-  animation-fill-mode: both;
+/* Slide */
+.slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
-.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
-.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
-.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
-.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
-.stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
-.stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+.slide-out-right { animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes slideOutRight {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
 
-/* ===================== TOAST ===================== */
-@keyframes slide-in-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+/* Pulse */
+.pulse { animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
-@keyframes slide-out-right {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(100%); opacity: 0; }
-}
-.toast {
-  min-width: 280px;
-  max-width: 400px;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--primary);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-  opacity: 0;
-  transform: translateX(100%);
-  animation: slide-in-right 0.3s ease-out forwards;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-.toast.show { opacity: 1; }
-.toast.toast--info { border-left-color: var(--primary); }
-.toast.toast--warning { border-left-color: var(--color-warning); }
-.toast.toast--error { border-left-color: var(--color-danger); }
-.toast.toast--success { border-left-color: var(--color-safe); }
 
-.toast__content {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  font-size: 13px;
+/* Glow */
+.glow { animation: glow 2s ease-in-out infinite alternate; }
+@keyframes glow {
+  0% { box-shadow: 0 0 5px rgba(56, 189, 248, 0.3); }
+  100% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.8); }
 }
-.toast__action {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.25rem 0.5rem;
-  font-size: 11px;
-  cursor: pointer;
-  margin-top: 0.3rem;
-  align-self: flex-end;
+
+/* Neon Accent Glow */
+.neon-accent {
+  box-shadow: 0 0 10px var(--accent-color),
+              0 0 20px var(--accent-color),
+              0 0 30px var(--accent-color);
+  transition: box-shadow 0.3s ease;
 }
-.toast__action:hover { background: var(--surface-2); }
-.toast__close {
+.neon-accent:hover {
+  box-shadow: 0 0 15px var(--accent-color),
+              0 0 30px var(--accent-color),
+              0 0 45px var(--accent-color);
+}
+
+/* Button Hover */
+.btn-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.2);
+}
+
+/* Graph Node Hover */
+.node-hover {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.node-hover:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px var(--accent-color);
+}
+
+/* Theme Transition */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease,
+              border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Loading Spinner */
+.spinner {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Status Pulse */
+.status-pulse::after {
+  content: '';
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.5;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-color);
+  animation: pulse-dot 1.5s ease-in-out infinite;
 }
-.toast__close:hover { opacity: 1; }
-
-/* ===================== MODAL ===================== */
-@keyframes modal-fade {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-.modal {
-  animation: modal-fade 0.2s ease-out;
-}
-
-/* ===================== DRAWER ===================== */
-@keyframes drawer-slide {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.drawer.show {
-  animation: drawer-slide 0.3s ease-out;
-}
-
-/* ===================== TRACE CHAIN RAIL ===================== */
-@keyframes rail-slide {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-.tracechain-rail.show {
-  animation: rail-slide 0.3s ease-out;
-}
-
-/* ===================== GAUGE ===================== */
-@keyframes gauge-draw {
-  from { stroke-dashoffset: 1000; }
-  to { stroke-dashoffset: 0; }
-}
-.gauge-fg {
-  animation: gauge-draw 1s ease-out;
-}
-
-/* ===================== COUNTER ===================== */
-@keyframes count-up {
-  from { opacity: 0.3; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.deepdive-counter span {
-  animation: count-up 0.3s ease-out;
-}
-
-/* ===================== NODE HIGHLIGHT ===================== */
-@keyframes node-highlight {
-  0% { r: 16; stroke-width: 1; stroke-opacity: 0; }
-  50% { stroke-opacity: 0.6; }
-  100% { r: 24; stroke-opacity: 0; }
-}
-
-/* ===================== REDUCED MOTION OVERRIDES ===================== */
-@media (prefers-reduced-motion: reduce) {
-  .forward-pulse,
-  .radar-sweep,
-  .sonar-ping,
-  .pulse-ring,
-  .pulse-glow,
-  .match-beam,
-  .chain-arrow,
-  .route-draw,
-  .terminal-type,
-  .bubble-pop,
-  .layer-reveal {
-    animation: none !important;
-  }
-
-  .toast,
-  .modal,
-  .drawer,
-  .tracechain-rail {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-
-  .stagger-children > * {
-    animation: none !important;
-    opacity: 1 !important;
-  }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
 }
